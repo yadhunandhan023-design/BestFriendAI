@@ -1,4 +1,4 @@
-# BestFriendAI (VARNI)
+# BestFriendAI (Jarvis)
 
 A fully local, privacy-first personal AI companion — built from scratch, running entirely on your own hardware with zero paid APIs.
 
