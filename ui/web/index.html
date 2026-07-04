@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VARNI — Your AI Companion</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f1a;
+    color: #e8e8f0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #header {
+    padding: 16px 20px;
+    background: #1a1a2e;
+    border-bottom: 1px solid #2a2a3e;
+  }
+  #header h2 { font-size: 18px; }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #6c5ce7;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: #1a1a2e;
+    border-bottom-left-radius: 4px;
+  }
+  .msg.thinking {
+    align-self: flex-start;
+    background: #1a1a2e;
+    color: #888;
+    font-style: italic;
+  }
+  #input-area {
+    display: flex;
+    padding: 16px;
+    gap: 10px;
+    background: #1a1a2e;
+    border-top: 1px solid #2a2a3e;
+  }
+  #msg-input {
+    flex: 1;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: #0f0f1a;
+    color: #e8e8f0;
+    font-size: 15px;
+  }
+  #send-btn {
+    padding: 0 24px;
+    border-radius: 10px;
+    border: none;
+    background: #6c5ce7;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #send-btn:hover { background: #5b4bd6; }
+</style>
+</head>
+<body>
+
+<div id="header"><h2>VARNI 💜</h2></div>
+<div id="messages"></div>
+<div id="input-area">
+  <input id="msg-input" placeholder="Type a message..." autocomplete="off">
+  <button id="send-btn">Send</button>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const messagesDiv = document.getElementById('messages');
+const msgInput = document.getElementById('msg-input');
+const sendBtn = document.getElementById('send-btn');
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+
+  const textSpan = document.createElement('span');
+  textSpan.textContent = text;
+  div.appendChild(textSpan);
+
+  if (role === 'assistant') {
+    const speakBtn = document.createElement('button');
+    speakBtn.textContent = ' 🔊';
+    speakBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;margin-left:6px;';
+    speakBtn.onclick = () => playSpeech(text);
+    div.appendChild(speakBtn);
+  }
+
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  return div;
+}
+
+async function playSpeech(text) {
+  try {
+    const res = await fetch(API_BASE + '/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.play();
+  } catch (e) {
+    console.warn('Could not play speech', e);
+  }
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch(API_BASE + '/history?limit=50');
+    const history = await res.json();
+    messagesDiv.innerHTML = '';
+    history.forEach(m => addMessage(m.role, m.content));
+  } catch (e) {
+    console.warn('Could not load history', e);
+  }
+}
+
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  addMessage('user', text);
+  msgInput.value = '';
+  const thinkingEl = addMessage('thinking', 'VARNI is thinking...');
+
+  try {
+    const res = await fetch(API_BASE + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    thinkingEl.remove();
+
+    if (!res.ok) {
+      addMessage('assistant', 'Error: ' + (data.detail || 'Something went wrong'));
+      return;
+    }
+    addMessage('assistant', data.reply);
+  } catch (e) {
+    thinkingEl.remove();
+    addMessage('assistant', 'Connection lost. Is the server still running?');
+  }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+msgInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+loadHistory();
+</script>
+
+</body>
+</html>

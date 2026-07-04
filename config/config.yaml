@@ -1,0 +1,15 @@
+app:
+  name: "BestFriendAI"
+  version: "0.1.0"
+  environment: "development"
+
+llm:
+  provider: "ollama"
+  model: "llama3.1:8b"
+  host: "http://localhost:11434"
+  temperature: 0.7
+  max_tokens: 512
+
+logging:
+  level: "INFO"
+  log_dir: "logs"
